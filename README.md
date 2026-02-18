@@ -23,6 +23,8 @@ Dibangun dengan Go — tanpa framework, satu binary executable.
 | | `POST /api/procedures/send` | Kirim prosedur ke Satu Sehat |
 | **MedicationRequest** | `GET /api/medication-requests/pending` | List resep obat (non-racikan + racikan) |
 | | `POST /api/medication-requests/send` | Kirim resep obat ke Satu Sehat |
+| **MedicationDispense** | `GET /api/medication-dispenses/pending` | List pemberian obat yang belum dikirim |
+| | `POST /api/medication-dispenses/send` | Kirim pemberian obat ke Satu Sehat |
 | **Send Log** | `GET /api/logs` | Riwayat pengiriman (filter by tanggal & status) |
 | **Health** | `GET /api/health` | Status koneksi DB & token |
 
@@ -142,6 +144,7 @@ Service ini menggunakan tabel-tabel Khanza yang sudah ada dan otomatis membuat:
 | `satu_sehat_procedure` | Tracking prosedur (ICD-9-CM) |
 | `satu_sehat_medicationrequest` | Tracking resep obat non-racikan |
 | `satu_sehat_medicationrequest_racikan` | Tracking resep obat racikan |
+| `satu_sehat_medicationdispense` | Tracking pemberian obat (6-part key) |
 | `satu_sehat_medication` | Mapping obat → Medication FHIR ID |
 | `satu_sehat_mapping_obat` | Mapping obat → KFA code, route, form |
 | `satu_sehat_mapping_lab` | Mapping lab → LOINC code |
@@ -185,8 +188,8 @@ Service ini menggunakan tabel-tabel Khanza yang sudah ada dan otomatis membuat:
 - [x] Observation Radiologi (imaging, specimen reference)
 - [x] Procedure (ICD-9-CM, SNOMED category)
 - [x] MedicationRequest (non-racikan + racikan, signa parsing)
+- [x] MedicationDispense (location, authorizingPrescription)
 - [x] Send Log & Log Endpoint
-- [ ] MedicationDispense
 - [ ] Background retry worker
 - [ ] Web dashboard (React)
 
