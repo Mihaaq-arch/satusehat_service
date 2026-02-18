@@ -15,6 +15,14 @@ Dibangun dengan Go — tanpa framework, satu binary executable.
 | | `POST /api/conditions/send` | Kirim diagnosa ke Satu Sehat |
 | **Observation TTV** | `GET /api/observations-ttv/{type}/pending` | List vital signs per tipe |
 | | `POST /api/observations-ttv/{type}/send` | Kirim vital signs ke Satu Sehat |
+| **Observation Lab** | `GET /api/observations-lab/pending` | List hasil lab yang belum dikirim |
+| | `POST /api/observations-lab/send` | Kirim hasil lab (LOINC dari mapping) |
+| **Observation Rad** | `GET /api/observations-rad/pending` | List hasil radiologi yang belum dikirim |
+| | `POST /api/observations-rad/send` | Kirim hasil radiologi (imaging) |
+| **Procedure** | `GET /api/procedures/pending` | List prosedur (ICD-9-CM) yang belum dikirim |
+| | `POST /api/procedures/send` | Kirim prosedur ke Satu Sehat |
+| **MedicationRequest** | `GET /api/medication-requests/pending` | List resep obat (non-racikan + racikan) |
+| | `POST /api/medication-requests/send` | Kirim resep obat ke Satu Sehat |
 | **Send Log** | `GET /api/logs` | Riwayat pengiriman (filter by tanggal & status) |
 | **Health** | `GET /api/health` | Status koneksi DB & token |
 
@@ -92,6 +100,15 @@ curl "http://localhost:8089/api/encounters/pending?tgl1=2026-02-01&tgl2=2026-02-
 # List pending TTV suhu
 curl "http://localhost:8089/api/observations-ttv/suhu/pending?tgl1=2026-02-01&tgl2=2026-02-18"
 
+# List pending lab results
+curl "http://localhost:8089/api/observations-lab/pending?tgl1=2026-02-01&tgl2=2026-02-18"
+
+# List pending procedures
+curl "http://localhost:8089/api/procedures/pending?tgl1=2026-02-01&tgl2=2026-02-18"
+
+# List pending medication requests
+curl "http://localhost:8089/api/medication-requests/pending?tgl1=2026-02-01&tgl2=2026-02-18"
+
 # Kirim encounter ralan
 curl -X POST http://localhost:8089/api/encounters/send \
   -H "Content-Type: application/json" \
@@ -99,6 +116,11 @@ curl -X POST http://localhost:8089/api/encounters/send \
 
 # Kirim TTV tensi
 curl -X POST http://localhost:8089/api/observations-ttv/tensi/send \
+  -H "Content-Type: application/json" \
+  -d '{"tgl1":"2026-02-01","tgl2":"2026-02-18"}'
+
+# Kirim medication requests
+curl -X POST http://localhost:8089/api/medication-requests/send \
   -H "Content-Type: application/json" \
   -d '{"tgl1":"2026-02-01","tgl2":"2026-02-18"}'
 
@@ -114,15 +136,16 @@ Service ini menggunakan tabel-tabel Khanza yang sudah ada dan otomatis membuat:
 |-------|------------|
 | `satu_sehat_encounter` | Tracking encounter yang sudah dikirim |
 | `satu_sehat_condition` | Tracking diagnosa yang sudah dikirim |
-| `satu_sehat_observationttvsuhu` | Tracking TTV suhu |
-| `satu_sehat_observationttvrespirasi` | Tracking TTV respirasi |
-| `satu_sehat_observationttvnadi` | Tracking TTV nadi |
-| `satu_sehat_observationttvspo2` | Tracking TTV SpO2 |
-| `satu_sehat_observationttvgcs` | Tracking TTV GCS |
-| `satu_sehat_observationttvtensi` | Tracking TTV tensi |
-| `satu_sehat_observationttvtb` | Tracking TTV tinggi badan |
-| `satu_sehat_observationttvbb` | Tracking TTV berat badan |
-| `satu_sehat_observationttvlp` | Tracking TTV lingkar perut |
+| `satu_sehat_observationttv*` | Tracking TTV (suhu, respirasi, nadi, spo2, gcs, tensi, tb, bb, lp) |
+| `satu_sehat_observation_lab` | Tracking hasil lab |
+| `satu_sehat_observation_radiologi` | Tracking hasil radiologi |
+| `satu_sehat_procedure` | Tracking prosedur (ICD-9-CM) |
+| `satu_sehat_medicationrequest` | Tracking resep obat non-racikan |
+| `satu_sehat_medicationrequest_racikan` | Tracking resep obat racikan |
+| `satu_sehat_medication` | Mapping obat → Medication FHIR ID |
+| `satu_sehat_mapping_obat` | Mapping obat → KFA code, route, form |
+| `satu_sehat_mapping_lab` | Mapping lab → LOINC code |
+| `satu_sehat_mapping_radiologi` | Mapping radiologi → LOINC code |
 | `satu_sehat_send_log` | **Auto-create.** Log semua pengiriman |
 
 ## Environment
@@ -147,6 +170,7 @@ Service ini menggunakan tabel-tabel Khanza yang sudah ada dan otomatis membuat:
 |-------|--------------|------------|
 | Token | Request setiap kali kirim | Cache + auto-refresh |
 | TTV | 10x copy-paste (~3000 baris) | Data-driven config (~200 baris) |
+| MedReq | 4 query terpisah di Java | 1 UNION ALL query |
 | Delivery | Desktop GUI (Swing) | REST API → bisa diakses dari mana saja |
 | Encounter | Hanya ralan | Ralan + Ranap |
 | Logging | Print ke console | Simpan ke DB (`satu_sehat_send_log`) |
@@ -157,11 +181,12 @@ Service ini menggunakan tabel-tabel Khanza yang sudah ada dan otomatis membuat:
 - [x] Encounter Ranap
 - [x] Condition (Diagnosa ICD-10)
 - [x] Observation TTV (9 tipe)
+- [x] Observation Lab (LOINC dari mapping, specimen reference)
+- [x] Observation Radiologi (imaging, specimen reference)
+- [x] Procedure (ICD-9-CM, SNOMED category)
+- [x] MedicationRequest (non-racikan + racikan, signa parsing)
 - [x] Send Log & Log Endpoint
-- [ ] Observation Lab
-- [ ] Observation Radiologi  
-- [ ] Procedure
-- [ ] MedicationRequest / MedicationDispense
+- [ ] MedicationDispense
 - [ ] Background retry worker
 - [ ] Web dashboard (React)
 
