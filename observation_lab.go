@@ -206,11 +206,14 @@ func (a *App) handleSendLabObs(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		obs := buildLabObservationJSON(row, patientID, practitionerID, a.cfg.SSOrgID)
-		fhirID, err := a.ss.SendObservation(obs)
+		fhirID, err := a.sendViaJob("Observation_Lab", idempKey(row.NoOrder, row.IDTemplate, row.KdJenisPrw), obs, a.ss.SendObservation)
 		if err != nil {
 			a.saveSendLog(row.NoRawat, "Observation_Lab", "", "failed", err.Error())
 			results = append(results, map[string]interface{}{"no_rawat": row.NoRawat, "noorder": row.NoOrder, "status": "failed", "error": err.Error()})
 			failCount++
+			continue
+		}
+		if fhirID == "" {
 			continue
 		}
 		_, dbErr := a.db.Exec(

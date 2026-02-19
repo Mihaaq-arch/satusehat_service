@@ -279,21 +279,21 @@ func (a *App) handleSendEncounters(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Build and send encounter
+		// Build and send encounter via job
 		encJSON := buildEncounterJSON(row, patientID, practID, a.cfg.SSOrgID)
-		fhirID, err := a.ss.SendEncounter(encJSON)
+		fhirID, err := a.sendViaJob("Encounter", idempKey(row.NoRawat), encJSON, a.ss.SendEncounter)
 		if err != nil {
 			results = append(results, map[string]interface{}{
-				"no_rawat": row.NoRawat,
-				"status":   "failed",
-				"step":     "send_encounter",
-				"error":    err.Error(),
+				"no_rawat": row.NoRawat, "status": "failed", "step": "send_encounter", "error": err.Error(),
 			})
 			failCount++
 			continue
 		}
+		if fhirID == "" {
+			continue // already processed via job
+		}
 
-		// Save to satu_sehat_encounter table (same as Khanza)
+		// Save to tracking table (Khanza compatibility)
 		_, err = a.db.Exec("INSERT INTO satu_sehat_encounter (no_rawat, id_encounter) VALUES (?, ?)",
 			row.NoRawat, fhirID)
 		if err != nil {
@@ -302,9 +302,7 @@ func (a *App) handleSendEncounters(w http.ResponseWriter, r *http.Request) {
 		a.saveSendLog(row.NoRawat, "Encounter", fhirID, "success", "")
 
 		results = append(results, map[string]interface{}{
-			"no_rawat":     row.NoRawat,
-			"status":       "success",
-			"id_encounter": fhirID,
+			"no_rawat": row.NoRawat, "status": "success", "id_encounter": fhirID,
 		})
 		sentCount++
 	}
@@ -408,13 +406,16 @@ func (a *App) handleSendEncountersRanap(w http.ResponseWriter, r *http.Request) 
 		}
 
 		encJSON := buildEncounterJSON(row, patientID, practID, a.cfg.SSOrgID)
-		fhirID, err := a.ss.SendEncounter(encJSON)
+		fhirID, err := a.sendViaJob("EncounterRanap", idempKey(row.NoRawat), encJSON, a.ss.SendEncounter)
 		if err != nil {
 			a.saveSendLog(row.NoRawat, "EncounterRanap", "", "failed", err.Error())
 			results = append(results, map[string]interface{}{
 				"no_rawat": row.NoRawat, "status": "failed", "step": "send_encounter", "error": err.Error(),
 			})
 			failCount++
+			continue
+		}
+		if fhirID == "" {
 			continue
 		}
 

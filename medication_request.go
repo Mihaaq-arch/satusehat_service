@@ -334,11 +334,18 @@ func (a *App) handleSendMedReq(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		mr := buildMedReqJSON(row, patientID, practID, a.cfg.SSOrgID)
-		fhirID, err := a.ss.SendMedicationRequest(mr)
+		ikey := idempKey(row.NoResep, row.KodeBrng)
+		if row.NoRacik != "" {
+			ikey = idempKey(row.NoResep, row.KodeBrng, row.NoRacik)
+		}
+		fhirID, err := a.sendViaJob("MedicationRequest", ikey, mr, a.ss.SendMedicationRequest)
 		if err != nil {
 			a.saveSendLog(row.NoRawat, "MedicationRequest", "", "failed", err.Error())
 			results = append(results, map[string]interface{}{"no_rawat": row.NoRawat, "kode_brng": row.KodeBrng, "status": "failed", "error": err.Error()})
 			failCount++
+			continue
+		}
+		if fhirID == "" {
 			continue
 		}
 		if row.NoRacik == "" {

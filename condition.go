@@ -186,21 +186,20 @@ func (a *App) handleSendConditions(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Build and send condition
+		// Build and send condition via job
 		condJSON := buildConditionJSON(row, patientID, row.IDEncounter)
-		fhirID, err := a.ss.SendCondition(condJSON)
+		fhirID, err := a.sendViaJob("Condition", idempKey(row.NoRawat, row.KdPenyakit), condJSON, a.ss.SendCondition)
 		if err != nil {
 			results = append(results, map[string]interface{}{
-				"no_rawat":    row.NoRawat,
-				"kd_penyakit": row.KdPenyakit,
-				"status":      "failed",
-				"error":       err.Error(),
+				"no_rawat": row.NoRawat, "kd_penyakit": row.KdPenyakit, "status": "failed", "error": err.Error(),
 			})
 			failCount++
 			continue
 		}
+		if fhirID == "" {
+			continue
+		}
 
-		// Save to DB
 		_, err = a.db.Exec("INSERT INTO satu_sehat_condition (no_rawat, kd_penyakit, id_condition) VALUES (?, ?, ?)",
 			row.NoRawat, row.KdPenyakit, fhirID)
 		if err != nil {
@@ -209,10 +208,7 @@ func (a *App) handleSendConditions(w http.ResponseWriter, r *http.Request) {
 		a.saveSendLog(row.NoRawat, "Condition", fhirID, "success", "")
 
 		results = append(results, map[string]interface{}{
-			"no_rawat":     row.NoRawat,
-			"kd_penyakit":  row.KdPenyakit,
-			"status":       "success",
-			"id_condition": fhirID,
+			"no_rawat": row.NoRawat, "kd_penyakit": row.KdPenyakit, "status": "success", "id_condition": fhirID,
 		})
 		sentCount++
 	}

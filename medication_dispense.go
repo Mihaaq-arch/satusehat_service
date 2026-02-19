@@ -299,11 +299,14 @@ func (a *App) handleSendMedDisp(w http.ResponseWriter, r *http.Request) {
 		}
 		medReqID := lookupMedReqID(a.db, row.NoResep, row.KodeBrng)
 		md := buildMedDispJSON(row, patientID, practID, a.cfg.SSOrgID, medReqID)
-		fhirID, err := a.ss.SendMedicationDispense(md)
+		fhirID, err := a.sendViaJob("MedicationDispense", idempKey(row.NoRawat, row.TglValidasi, row.KodeBrng, row.NoBatch, row.NoFaktur), md, a.ss.SendMedicationDispense)
 		if err != nil {
 			a.saveSendLog(row.NoRawat, "MedicationDispense", "", "failed", err.Error())
 			results = append(results, map[string]interface{}{"no_rawat": row.NoRawat, "kode_brng": row.KodeBrng, "status": "failed", "error": err.Error()})
 			failCount++
+			continue
+		}
+		if fhirID == "" {
 			continue
 		}
 		tglParts := strings.SplitN(row.TglValidasi, " ", 2)

@@ -198,11 +198,14 @@ func (a *App) handleSendRadObs(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		obs := buildRadObservationJSON(row, patientID, practitionerID, a.cfg.SSOrgID)
-		fhirID, err := a.ss.SendObservation(obs)
+		fhirID, err := a.sendViaJob("Observation_Rad", idempKey(row.NoOrder, row.KdJenisPrw), obs, a.ss.SendObservation)
 		if err != nil {
 			a.saveSendLog(row.NoRawat, "Observation_Rad", "", "failed", err.Error())
 			results = append(results, map[string]interface{}{"no_rawat": row.NoRawat, "noorder": row.NoOrder, "status": "failed", "error": err.Error()})
 			failCount++
+			continue
+		}
+		if fhirID == "" {
 			continue
 		}
 		_, dbErr := a.db.Exec(

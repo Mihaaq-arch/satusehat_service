@@ -225,6 +225,9 @@ func main() {
 		log.Println("✅ Send log table ready")
 	}
 
+	// Auto-create mera_integration_jobs table
+	initJobsTable(db)
+
 	// Init token manager and SS client
 	tokenMgr := NewTokenManager(cfg)
 	ssClient := NewSSClient(cfg, tokenMgr)
@@ -254,6 +257,8 @@ func main() {
 	mux.HandleFunc("POST /api/medication-requests/send", app.handleSendMedReq)
 	mux.HandleFunc("GET /api/medication-dispenses/pending", app.handlePendingMedDisp)
 	mux.HandleFunc("POST /api/medication-dispenses/send", app.handleSendMedDisp)
+	mux.HandleFunc("GET /api/jobs", app.handleListJobs)
+	mux.HandleFunc("POST /api/jobs/retry", app.handleRetryJobs)
 
 	// Print routes
 	log.Println("📋 Routes:")

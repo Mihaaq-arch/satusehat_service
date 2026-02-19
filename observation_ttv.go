@@ -301,11 +301,14 @@ func (a *App) handleSendTTV(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		obs := buildObservationJSON(row, *cfg, patientID, practitionerID)
-		fhirID, err := a.ss.SendObservation(obs)
+		fhirID, err := a.sendViaJob("Observation_"+cfg.Name, idempKey(row.NoRawat, row.TglPerawatan, row.JamRawat, row.SttsLanjut), obs, a.ss.SendObservation)
 		if err != nil {
 			a.saveSendLog(row.NoRawat, resourceLabel, "", "failed", err.Error())
 			results = append(results, map[string]interface{}{"no_rawat": row.NoRawat, "status": "failed", "error": err.Error()})
 			failCount++
+			continue
+		}
+		if fhirID == "" {
 			continue
 		}
 		_, dbErr := a.db.Exec(

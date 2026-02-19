@@ -63,6 +63,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .btn-outline{background:transparent;border:1px solid var(--border);color:var(--text-muted)}
 .btn-outline:hover{border-color:var(--accent);color:var(--text)}
 .btn:disabled{opacity:.5;cursor:not-allowed;transform:none!important}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-danger:hover{background:#dc2626}
 /* Grid */
 .grid{
   display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
@@ -156,6 +158,24 @@ tr:hover td{background:rgba(99,102,241,.04)}
     <table>
       <thead><tr><th>Waktu</th><th>No Rawat</th><th>Resource</th><th>FHIR ID</th><th>Status</th></tr></thead>
       <tbody id="logBody"><tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:24px">Klik refresh untuk memuat log</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="log-section">
+  <h2>📦 Integration Jobs
+    <button class="btn btn-outline btn-sm" onclick="loadJobs()" style="margin-left:auto">Refresh</button>
+    <button class="btn btn-danger btn-sm" id="retryBtn" onclick="retryFailed()">🔄 Retry Failed</button>
+  </h2>
+  <div class="card-stats" style="margin-bottom:16px">
+    <div class="stat"><div class="stat-value pending" id="jobs-pending">—</div><div class="stat-label">Pending</div></div>
+    <div class="stat"><div class="stat-value sent" id="jobs-success">—</div><div class="stat-label">Success</div></div>
+    <div class="stat"><div class="stat-value" style="color:var(--danger)" id="jobs-failed">—</div><div class="stat-label">Failed</div></div>
+  </div>
+  <div class="log-table-wrap">
+    <table>
+      <thead><tr><th>ID</th><th>Resource</th><th>Key</th><th>Status</th><th>FHIR ID</th><th>Retries</th><th>Error</th></tr></thead>
+      <tbody id="jobsBody"><tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:24px">Klik refresh untuk memuat jobs</td></tr></tbody>
     </table>
   </div>
 </div>
@@ -317,6 +337,56 @@ async function loadLogs(){
 
 // Init
 refreshHealth();
+
+async function loadJobs(){
+  try{
+    const {tgl1,tgl2} = getDates();
+    const r = await fetch('/api/jobs?tgl1='+tgl1+'&tgl2='+tgl2+'&limit=100');
+    const d = await r.json();
+    document.getElementById('jobs-pending').textContent = d.pending??0;
+    document.getElementById('jobs-success').textContent = d.success??0;
+    document.getElementById('jobs-failed').textContent = d.failed??0;
+    const body = document.getElementById('jobsBody');
+    if(!d.jobs || d.jobs.length===0){
+      body.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:24px">Tidak ada jobs</td></tr>';
+      return;
+    }
+    body.innerHTML = d.jobs.map(j=>{
+      const badgeClass = j.status==='success'?'badge-success':j.status==='failed'?'badge-failed':'badge-skipped';
+      const fhirShort = j.fhir_id ? j.fhir_id.substring(0,12)+'...' : '—';
+      const errShort = j.error_message ? j.error_message.substring(0,40) : '—';
+      return '<tr><td>'+j.id+'</td><td>'+j.resource_type+'</td>'
+        +'<td style="font-family:monospace;font-size:11px">'+j.idempotency_key.substring(0,30)+'</td>'
+        +'<td><span class="badge '+badgeClass+'">'+j.status+'</span></td>'
+        +'<td style="font-family:monospace;font-size:11px;color:var(--text-dim)">'+fhirShort+'</td>'
+        +'<td>'+j.retry_count+'/3</td>'
+        +'<td style="font-size:11px;color:var(--text-dim)">'+errShort+'</td></tr>';
+    }).join('');
+  }catch(e){
+    document.getElementById('jobsBody').innerHTML = '<tr><td colspan="7" style="color:var(--danger)">Error: '+e.message+'</td></tr>';
+  }
+}
+
+async function retryFailed(){
+  const btn = document.getElementById('retryBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Retrying...';
+  try{
+    const r = await fetch('/api/jobs/retry',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({status:'failed'})
+    });
+    const d = await r.json();
+    toast('Retry: '+d.succeeded+' succeeded, '+d.still_failed+' still failed', d.succeeded>0?'success':'error');
+    loadJobs();
+    loadLogs();
+  }catch(e){
+    toast('Retry error: '+e.message, 'error');
+  }finally{
+    btn.disabled = false;
+    btn.innerHTML = '🔄 Retry Failed';
+  }
+}
 </script>
 </body>
 </html>`

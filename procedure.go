@@ -163,11 +163,14 @@ func (a *App) handleSendProcedures(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		proc := buildProcedureJSON(row, patientID)
-		fhirID, err := a.ss.SendProcedure(proc)
+		fhirID, err := a.sendViaJob("Procedure", idempKey(row.NoRawat, row.KodeICD9, row.StatusProc), proc, a.ss.SendProcedure)
 		if err != nil {
 			a.saveSendLog(row.NoRawat, "Procedure", "", "failed", err.Error())
 			results = append(results, map[string]interface{}{"no_rawat": row.NoRawat, "kode": row.KodeICD9, "status": "failed", "error": err.Error()})
 			failCount++
+			continue
+		}
+		if fhirID == "" {
 			continue
 		}
 		_, dbErr := a.db.Exec(
